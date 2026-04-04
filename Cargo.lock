@@ -2437,6 +2437,7 @@ dependencies = [
  "notify",
  "parse-display",
  "path-absolutize",
+ "pathdiff",
  "pyrefly_derive",
  "rayon",
  "ruff_notebook",
