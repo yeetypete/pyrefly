@@ -4519,3 +4519,30 @@ def subscripted(sub: Sub23) -> None:
     wants45(sub)
 "#,
 );
+
+// A subclass is not a registered shaped array, so a shape DSL does not recognize it and
+// substitutes the inherited shape unchanged. Unlike the gradual cases above, that is a
+// wrong shape rather than an unknown one.
+testcase!(
+    bug = "a shape DSL is skipped for a subclass, yielding the input shape",
+    test_shaped_array_subclass_skips_shape_dsl,
+    shaped_array_env_with_numpy(),
+    r#"
+from typing import assert_type
+from numpy import tcarray, tc_add_leading_axis, tc_identity
+
+Alias23 = tcarray[[2, 3], int]
+
+class Sub(Alias23): ...
+
+def base(x: tcarray[[2, 3], int]) -> None:
+    assert_type(tc_identity(x), tcarray[[2, 3], int])
+    assert_type(tc_add_leading_axis(x), tcarray[[1, 2, 3], int])
+
+def sub(s: Sub) -> None:
+    # Plain substitution threads the inherited shape correctly.
+    assert_type(tc_identity(s), tcarray[[2, 3], int])
+    # The DSL should add a leading axis here too, giving `[1, 2, 3]`.
+    assert_type(tc_add_leading_axis(s), tcarray[[2, 3], int])
+"#,
+);
