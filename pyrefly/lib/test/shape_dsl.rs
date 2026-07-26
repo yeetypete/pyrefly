@@ -4546,3 +4546,62 @@ def sub(s: Sub) -> None:
     assert_type(tc_add_leading_axis(s), tcarray[[2, 3], int])
 "#,
 );
+
+testcase!(
+    test_shaped_array_is_assignable_to_a_shaped_base,
+    shaped_array_env(),
+    r#"
+from shape_extensions import IntTuple, shaped_array
+
+@shaped_array(shape="Shape")
+class Array[Shape: IntTuple]: ...
+
+@shaped_array(shape="Shape")
+class PC[Shape: IntTuple](Array): ...
+
+@shaped_array(shape="Shape")
+class Unrelated[Shape: IntTuple]: ...
+
+def wants_array(x: Array) -> None: ...
+def wants_array23(x: Array[[2, 3]]) -> None: ...
+def wants_pc23(x: PC[[2, 3]]) -> None: ...
+
+def f(pc: PC[[2, 3]], other: PC[[4, 5]], array: Array[[2, 3]], un: Unrelated[[2, 3]]) -> None:
+    # A shaped subclass is assignable to its shaped base, shape and all.
+    wants_array(pc)
+    wants_array23(pc)
+    # The shape still has to match, the class still has to be a subclass, and the
+    # base is not assignable to the subclass.
+    wants_array23(other)  # E: `PC[[4, 5]]` is not assignable to parameter `x` with type `Array[[2, 3]]`
+    wants_array23(un)  # E: `Unrelated[[2, 3]]` is not assignable to parameter `x` with type `Array[[2, 3]]`
+    wants_pc23(array)  # E: `Array[[2, 3]]` is not assignable to parameter `x` with type `PC[[2, 3]]`
+"#,
+);
+
+testcase!(
+    test_shaped_array_subtyping_binds_dimensions_through_the_mro,
+    shaped_array_env(),
+    r#"
+from shape_extensions import IntTuple, IntVar, shaped_array
+
+@shaped_array(shape="Shape")
+class Array[Shape: IntTuple, DType]: ...
+
+# Both subclasses reorder their parameters relative to the base.
+@shaped_array(shape="Shape")
+class Mid[DType, Shape: IntTuple](Array[Shape, DType]): ...
+
+@shaped_array(shape="Shape")
+class Leaf[DType, Shape: IntTuple](Mid[DType, Shape]): ...
+
+def wants_int_rows[N: IntVar](x: Array[[N, 3], int]) -> None: ...
+def wants_str(x: Array[[2, 3], str]) -> None: ...
+
+def f(mid: Mid[int, [2, 3]], leaf: Leaf[int, [2, 3]]) -> None:
+    # Dimensions bind across one and two levels of subclassing, and the
+    # non-shape argument is still checked.
+    wants_int_rows(mid)
+    wants_int_rows(leaf)
+    wants_str(leaf)  # E: `Leaf[int, [2, 3]]` is not assignable to parameter `x` with type `Array[[2, 3], str]`
+"#,
+);

@@ -2843,17 +2843,7 @@ impl<'a, Ans: LookupAnswer> Subset<'a, Ans> {
         let same_class = got_base.class_object() == want_base.class_object();
         self.is_subset_eq(&got_base.to_type(), &want_base.to_type())?;
 
-        // We do not (yet) support subtyping for shaped arrays given that
-        // there's no known need and it would complicate the shape param
-        // analysis. We need to catch this explicitly since the ClassType would
-        // be assignable.
-        if !same_class {
-            return Err(SubsetError::ShapedArraySubtyping(
-                got.base_class.class_object().qname().clone(),
-                want.base_class.class_object().qname().clone(),
-            ));
-        }
-        if want_param != shape_param {
+        if same_class && want_param != shape_param {
             // Unreachable since class objects match, except maybe during incremental updates.
             return Err(SubsetError::InternalError(
                 "ShapedArrayTypes from the same class have different registered shape parameters"
