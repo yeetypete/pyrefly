@@ -4428,3 +4428,94 @@ def f(shapeless: Array[IntTuple, int], concrete: Array[[3], int]) -> None:
     assert_type(concrete, Array[[3], int])
 "#,
 );
+
+testcase!(
+    test_shaped_array_subclass_is_a_real_class,
+    shaped_array_env(),
+    r#"
+from typing import assert_type
+from shape_extensions import IntTuple, shaped_array
+
+@shaped_array(shape="Shape")
+class Array[Shape: IntTuple]:
+    shape: Shape
+    def copy(self) -> Array[Shape]: ...
+
+class Sub(Array): ...
+
+def wants_array(x: Array) -> None: ...
+def wants_sub(x: Sub) -> None: ...
+
+def f(sub: Sub, array: Array) -> None:
+    # Members of the shaped-array base are inherited. The subclass carries no
+    # shape of its own, so the inherited shape is gradual.
+    assert_type(sub.copy(), Array[IntTuple])
+    # The subclass is assignable to its base, but not the other way around, and
+    # it no longer swallows unrelated arguments.
+    wants_array(sub)
+    wants_sub(array)  # E: `Array` is not assignable to parameter `x` with type `Sub`
+    wants_sub("oops")  # E: `Literal['oops']` is not assignable to parameter `x` with type `Sub`
+"#,
+);
+
+testcase!(
+    test_shaped_array_subclass_inherits_through_mro,
+    shaped_array_env(),
+    r#"
+from typing import assert_type
+from shape_extensions import IntTuple, shaped_array
+
+@shaped_array(shape="Shape")
+class Array[Shape: IntTuple]:
+    def copy(self) -> Array[Shape]: ...
+
+class Mixin:
+    def extra(self) -> str: ...
+
+class Mid(Array, Mixin): ...
+class Leaf(Mid): ...
+
+def wants_array(x: Array) -> None: ...
+def wants_mixin(x: Mixin) -> None: ...
+
+def f(leaf: Leaf) -> None:
+    assert_type(leaf.copy(), Array[IntTuple])
+    assert_type(leaf.extra(), str)
+    wants_array(leaf)
+    wants_mixin(leaf)
+"#,
+);
+
+// The two ways to spell a fixed-shape base disagree, because base class lists use a
+// restricted subscript inference that doesn't parse shapes.
+testcase!(
+    bug = "a shape subscripted in the base class list is dropped",
+    test_shaped_array_subclass_shape_depends_on_base_spelling,
+    shaped_array_env(),
+    r#"
+from typing import assert_type
+from shape_extensions import IntTuple, shaped_array
+
+@shaped_array(shape="Shape")
+class Array[Shape: IntTuple]:
+    def copy(self) -> Array[Shape]: ...
+
+Alias23 = Array[[2, 3]]
+
+class SubAlias(Alias23): ...
+class Sub23(Array[[2, 3]]): ...
+
+def wants23(x: Array[[2, 3]]) -> None: ...
+def wants45(x: Array[[4, 5]]) -> None: ...
+
+def aliased(sub: SubAlias) -> None:
+    assert_type(sub.copy(), Array[[2, 3]])
+    wants23(sub)
+    wants45(sub)  # E: `SubAlias` is not assignable to parameter `x` with type `Array[[4, 5]]`
+
+def subscripted(sub: Sub23) -> None:
+    assert_type(sub.copy(), Array[IntTuple])
+    wants23(sub)
+    wants45(sub)
+"#,
+);
