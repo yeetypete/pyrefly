@@ -10,6 +10,7 @@ use std::sync::Arc;
 use dupe::Clone_;
 use dupe::Copy_;
 use dupe::Dupe_;
+use pyrefly_types::shaped_array::ShapedArrayType;
 use pyrefly_types::type_alias::TypeAlias;
 use pyrefly_types::type_alias::TypeAliasData;
 use pyrefly_types::typed_dict::ExtraItems;
@@ -76,6 +77,10 @@ impl<'a, Ans: LookupAnswer> TypeOrder<'a, Ans> {
 
     pub fn shaped_array_shape_for_class_type(self, cls: &ClassType) -> Option<Quantified> {
         self.0.shaped_array_shape_for_class_type(cls)
+    }
+
+    pub fn shaped_array_classtype_to_shaped_array_type(self, cls: &ClassType) -> ShapedArrayType {
+        self.0.shaped_array_classtype_to_shaped_array_type(cls)
     }
 
     pub fn has_metaclass(self, cls: &Class, metaclass: &ClassType) -> bool {

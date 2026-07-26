@@ -2177,6 +2177,17 @@ impl<'a, Ans: LookupAnswer> Subset<'a, Ans> {
                 let got = self.shaped_array_as_carrier_class(tensor)?;
                 self.is_subset_eq(&got.to_type(), &Type::ClassType(cls.clone()))
             }
+            // Subclass of a shaped array is subtype of that array, with its inherited shape
+            (Type::ClassType(cls), Type::ShapedArray(want))
+                if let Some(got_base) = self
+                    .type_order
+                    .as_superclass(cls, want.base_class.class_object()) =>
+            {
+                let got = self
+                    .type_order
+                    .shaped_array_classtype_to_shaped_array_type(&got_base);
+                self.is_subset_shaped_array(&got, want)
+            }
             // NNModule is subtype of its class
             (Type::NNModule(module), Type::ClassType(cls)) => self.is_subset_eq(
                 &Type::ClassType(module.class.clone()),

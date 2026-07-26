@@ -321,6 +321,14 @@ impl<'a, Ans: LookupAnswer> AnswersSolver<'a, Ans> {
                         }
                         Some((c, bases, range))
                     }
+                    (Type::ShapedArray(shaped), range) => {
+                        // The shape lives in the targs, so an aliased base keeps it. A
+                        // subscript arrives gradual, since base class lists don't parse shapes.
+                        // TODO: parse them so a subscripted base keeps its shape.
+                        let class_ty = shaped.base_class.clone();
+                        let bases = self.get_base_types_for_class(class_ty.class_object());
+                        Some((class_ty, bases, range))
+                    }
                     (Type::Tuple(tuple), range) => {
                         let class_ty = self.erase_tuple_type(tuple);
                         let bases = self.get_base_types_for_class(class_ty.class_object());

@@ -1461,6 +1461,16 @@ impl<'a, Ans: LookupAnswer> AnswersSolver<'a, Ans> {
                     }
                 })
             }
+            Type::ShapedArray(shaped) => {
+                // A shaped array is the class it wraps plus a shape
+                let base_cls = shaped.base_class.class_object();
+                let base_class_metadata = self.get_metadata_for_class(base_cls);
+                BaseClassParseResult::Parsed(ParsedBaseClass {
+                    class_object: base_cls.dupe(),
+                    range,
+                    metadata: base_class_metadata,
+                })
+            }
             Type::Tuple(_) => {
                 let tuple_obj = self.stdlib.tuple_object();
                 let metadata = self.get_metadata_for_class(tuple_obj);
